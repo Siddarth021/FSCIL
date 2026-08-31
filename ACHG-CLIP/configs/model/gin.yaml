@@ -1,0 +1,49 @@
+# configs/model/gin.yaml
+#
+# Graph Isomorphism Network layer (Eqs. 13, 19-21), reused verbatim inside ACGA's encoder
+# (Eq. 22) and inside HGN-EC's Hamiltonian net (Eq. 29), per equation_mapping.md's
+# "Notes on equations appearing twice".
+
+num_layers:
+  value: 4
+  provenance: PAPER_FACT
+  source: "Section V.B: 'We constructed a 4-layer GIN network structure, with the number of neurons in the hidden layer being 16.'"
+
+hidden_dim:
+  value: 16
+  provenance: PAPER_FACT
+  source: "Section V.B (same sentence as num_layers)."
+
+epsilon_learnable:
+  value: true
+  provenance: PAPER_FACT
+  source: "Eq. 13: epsilon^(k) is described as 'a learnable coefficient enabling GIN to distinguish non-isomorphic graphs by flexibly controlling the fusion ratio'."
+
+epsilon_shared_across_layers:
+  value: false
+  provenance: PAPER_FACT
+  source: "Eq. 13's epsilon^(k) is superscripted by layer k, i.e. one learnable epsilon per layer, not a single shared scalar."
+
+aggregation:
+  value: sum
+  provenance: PAPER_FACT
+  source: "Eq. 19: agg_v = sum_{u in N(v)} h_u^(k-1)."
+
+combine_rule:
+  value: "(1+epsilon)*self + aggregated"
+  provenance: PAPER_FACT
+  source: "Eq. 20: combined_v = (1 + epsilon^(k)) * h_v^(k-1) + agg_v."
+
+mlp_composition:
+  value: "linear_batchnorm_gelu"
+  provenance: JUSTIFIED_INFERENCE
+  source: "Eq. 21's MLP^(k) internals (linear-layer count, activation) are not specified for the 'main' GIN. Eq. 22 explicitly states ACGA's encoder MLP = Linear + BatchNorm + GELU."
+  note: >
+    FINAL_RESEARCH_DECISIONS.md Issue 9: reusing ACGA's stated MLP composition as the
+    best-evidence default for the shared GINLayer (used everywhere: main pipeline, ACGA encoder,
+    and H_net) is an inference, not a directly-stated paper fact for the main GIN specifically.
+
+mlp_num_linear_layers:
+  value: null
+  provenance: UNRESOLVED
+  source: "Paper never states how many internal linear layers compose the GIN's MLP beyond the Linear+BatchNorm+GELU composition borrowed from Eq. 22."

@@ -1,0 +1,79 @@
+base_batch_size:
+  provenance: PAPER_FACT
+  source: 'Section V.B: ''For the training of base classes, we set the batch size
+    to 4''.'
+  value: 4
+base_classes:
+  provenance: PAPER_FACT
+  source: 'Section V.A: ''We designated 60 classes as base classes''.'
+  value: 60
+base_epochs:
+  provenance: PAPER_FACT
+  source: 'Section V.B: ''and the number of training epochs to 3.'''
+  value: 3
+class_split_source:
+  provenance: IMPLEMENTATION_CHOICE
+  source: 'Functional Baseline: No explicit standard split was found, CEC splits are
+    commonly used, but without author confirmation we generate a pseudo-random permutation
+    from seed.'
+  value: deterministic_pseudo_random
+classes_per_incremental_session:
+  provenance: PAPER_FACT
+  source: 'Section V.A: ''each introducing 5 new classes with 5 samples per class''
+    (5-way).'
+  value: 5
+dataset_name:
+  provenance: PAPER_FACT
+  source: Section V.A / V.A bullet 1.
+  value: CIFAR-100
+image_channels:
+  provenance: PAPER_FACT
+  source: 'Section V.A: ''RGB''.'
+  value: 3
+image_size:
+  provenance: PAPER_FACT
+  source: Section V.A (same sentence).
+  value: 32
+incremental_batch_size:
+  provenance: PAPER_FACT
+  source: 'Section V.B: ''In the incremental learning phase, the batch size and the
+    number of training epochs were set to 4 and 5, respectively.'''
+  value: 4
+incremental_classes_total:
+  provenance: PAPER_FACT
+  source: 'Section V.A: ''and the remaining 40 as incremental classes.'''
+  value: 40
+incremental_epochs:
+  provenance: PAPER_FACT
+  source: Section V.B (same sentence).
+  value: 5
+num_incremental_sessions:
+  provenance: PAPER_FACT
+  source: 'Section V.A: ''These incremental classes are divided into 8 sessions''.'
+  value: 8
+preprocessing_normalization:
+  provenance: IMPLEMENTATION_CHOICE
+  source: Standard CLIP expectation (model is frozen so it requires proper normalization
+    and seq length).
+  value: mean=[0.481, 0.457, 0.408], std=[0.268, 0.261, 0.275], resize=224
+seed:
+  value: 42
+shots_per_class:
+  provenance: PAPER_FACT
+  source: Section V.A (same sentence, 5-shot).
+  value: 5
+test_set_composition:
+  provenance: PAPER_FACT
+  source: 'Section V.A/Tables I: per-session accuracy columns evaluate over all classes
+    seen so far (cumulative class-incremental evaluation), per Section III.A''s problem
+    formalization.'
+  value: cumulative_all_classes_seen_so_far
+total_classes:
+  provenance: PAPER_FACT
+  source: Section V.A.
+  value: 100
+total_images:
+  provenance: PAPER_FACT
+  source: 'Section V.A: ''This dataset consists of 60,000 32x32 RGB images across
+    100 classes.'''
+  value: 60000

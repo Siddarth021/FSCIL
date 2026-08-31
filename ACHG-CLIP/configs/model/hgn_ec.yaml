@@ -1,0 +1,103 @@
+# configs/model/hgn_ec.yaml
+#
+# Hamiltonian Graph Network with Energy Conservation (Eqs. 27-33).
+
+state_init_form:
+  value: "concat_X_and_AX"
+  provenance: PAPER_FACT
+  source: "Eq. 27: aggregated = A . X; state = [X, aggregated] (concatenation along the feature axis)."
+
+qp_init_rule:
+  value: "q_and_p_both_equal_compressed"
+  provenance: PAPER_FACT
+  source: "Section IV.D.3: 'HGN-EC assigns the compressed feature vector `compressed` to both q and p.'"
+
+compression_num_layers:
+  value: 1
+  provenance: PAPER_FACT
+  source: "Eq. 28: compressed = W_compress . state + b_compress -- a single linear layer."
+
+compressed_dim_Dc:
+  value: null
+  provenance: UNRESOLVED
+  source: "Eq. 28 gives the linear-layer form but no numeric output width."
+
+hamiltonian_net_composition:
+  value: "gin_layers_plus_activations"
+  provenance: PAPER_FACT
+  source: "Section IV.D.4, after Eq. 29: 'H_net is an MLP consisting of GIN layers and activation functions.'"
+
+hnet_gin_layers:
+  value: 1
+  provenance: IMPLEMENTATION_CHOICE
+  source: "Fig. 1 depicts a single 'Hamiltonian GIN Layer' block (singular), unlike the main pipeline's plural/4-layer GIN block."
+  note: >
+    FINAL_RESEARCH_DECISIONS.md Issue 20 (JUSTIFIED_INFERENCE, weak): the singular figure label is
+    weak evidence H_net may use fewer GIN layers than the main GIN, but this is not stated in
+    prose. Exposed as a config separate from configs/model/gin.yaml: num_layers so the two can
+    diverge; default value of 1 here is this project's own IMPLEMENTATION_CHOICE, not a confirmed
+    paper fact, made only slightly more likely by the figure's singular wording.
+
+hamiltonian_output_shape:
+  value: "scalar_per_graph"
+  provenance: IMPLEMENTATION_CHOICE
+  source: "Eq. 29 gives H = H_net(cat(q,p)) without stating whether H is scalar-per-graph or per-node; Eq. 33 indexes H_initial,i for i=1..n, which is compatible with either reading depending on what n indexes."
+  note: "FINAL_RESEARCH_DECISIONS.md Issue 19. Affects the shape used in losses/hgn_ec_losses.py; flagged, not confirmed."
+
+integration_method:
+  value: "symplectic_euler"
+  provenance: PAPER_FACT
+  source: "Eq. 31: p_new = p + dt*p_dot; q_new = q + dt*q_dot."
+
+gradient_computation:
+  value: "autograd"
+  provenance: PAPER_FACT
+  source: "Eq. 30: q_dot = dH/dp, p_dot = -dH/dq, computed via torch.autograd.grad per equation_mapping.md's implementation note."
+
+dt:
+  value: null
+  provenance: UNRESOLVED
+  source: "No numeric value, default, or search range anywhere in the paper (Section V.B; Section V.D's sensitivity study sweeps GNN choice / threshold / loss-coefficients / prompt-count / optimizer, but never dt)."
+
+integration_steps:
+  value: 1
+  provenance: IMPLEMENTATION_CHOICE
+  source: "Section IV.D.1-.8 describes a single pass (compress -> init q,p -> H -> update -> restore) with no iteration language ('repeat', 'for each step', 'iterate') anywhere."
+  note: "FINAL_RESEARCH_DECISIONS.md Issue 23: JUSTIFIED_INFERENCE toward single-step from absence of iteration language, but the concrete default of exactly 1 is this project's IMPLEMENTATION_CHOICE."
+
+restoration_num_layers:
+  value: 1
+  provenance: PAPER_FACT
+  source: "Eq. 32: q_final = W_restore . q_new + b_restore -- a single linear layer, 'inverse in spirit' to Eq. 28's compression."
+
+restoration_target_dim:
+  value: "state_dim"
+  provenance: IMPLEMENTATION_CHOICE
+  source: "Eq. 32's 'restored to the original dimensionality' is ambiguous between (a) the pre-compression state dimensionality (2*D) and (b) the original per-layer prompt dimensionality d needed to feed back into G/GV."
+  note: "FINAL_RESEARCH_DECISIONS.md Issue 25. Default reading here targets the state dimension (2*D); the reshape back into prompt-tensor form (L,1,d) is a separate, explicitly tested step (Blocker 3/Issue 26)."
+
+feedback_reshape_path:
+  value: "explicit_named_function_required"
+  provenance: IMPLEMENTATION_CHOICE
+  source: "Section IV.D.8: q_final 'serves as the updated learnable prompt, which is passed into the vision and text encoders' -- exact reshape from q_final back into G/GV in R^{L x M x d} is not described anywhere (FINAL_RESEARCH_DECISIONS.md Issue 26, TRUE BLOCKER, same root cause as Issue 7)."
+  note: "FINAL_IMPLEMENTATION_BLUEPRINT.md Part 3: this reshape must go through an explicitly named, unit-tested function, never an implicit/assumed reshape."
+
+energy_loss_form:
+  value: "mse_between_initial_and_final_H"
+  provenance: PAPER_FACT
+  source: "Eq. 33: L_energy = MSE(H_initial, H_final)."
+
+energy_loss_n_referent:
+  value: null
+  provenance: UNRESOLVED
+  source: "Eq. 33's normalizer n is undefined numerically; depends on the hamiltonian_output_shape resolution above (batch size if scalar-per-graph, node count N if per-node)."
+
+acga_hgnec_data_wiring:
+  value: "parallel_auxiliary_head_on_shared_XA"
+  provenance: IMPLEMENTATION_CHOICE
+  source: "Mirror of configs/model/acga.yaml: acga_hgnec_data_wiring -- kept in sync manually. See that file's note and FINAL_IMPLEMENTATION_BLUEPRINT.md Blocker 4."
+
+modality_scope:
+  value: "independent_shared_weights"
+  provenance: IMPLEMENTATION_CHOICE
+  source: "Mirror of configs/model/acga.yaml: modality_scope -- kept in sync manually. See that file's note and FINAL_IMPLEMENTATION_BLUEPRINT.md Blocker 5."

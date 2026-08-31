@@ -1,0 +1,55 @@
+# configs/experiment.yaml
+#
+# Reproduction-safety / experiment-tracking settings. See reproduction_protocol.md Sections
+# 12-14 and FINAL_IMPLEMENTATION_BLUEPRINT.md Part 8. None of these are paper facts -- the
+# paper specifies no seed, no checkpoint policy, and no logging framework -- so every entry
+# here is an explicit IMPLEMENTATION_CHOICE (a reproduction-engineering convention), never
+# invented silently and never described as something the paper's authors did.
+
+seed:
+  value: 42
+  provenance: IMPLEMENTATION_CHOICE
+  source: "reproduction_protocol.md Section 13: 'Not specified in the paper. No random seed value... is given anywhere in the paper.'"
+  note: "Decision deferred to maintainer per the paper; this default is only used when no seed is supplied explicitly, and every saved config/checkpoint records the seed actually used."
+
+deterministic:
+  value: true
+  provenance: IMPLEMENTATION_CHOICE
+  source: "Not addressed by the paper. FINAL_IMPLEMENTATION_BLUEPRINT.md Part 8: torch.use_deterministic_algorithms(True) where practical, cudnn.benchmark=False, for reproducibility runs."
+  note: "A non-deterministic mode is available via this same flag for speed; the trade-off is documented, not silently chosen."
+
+checkpoint_frequency:
+  value: "per_session"
+  provenance: IMPLEMENTATION_CHOICE
+  source: "reproduction_protocol.md Section 12: 'Not specified in the paper... Decision deferred to maintainer. Proposed convention... save one checkpoint at the end of the base session and one at the end of each incremental session.'"
+  note: "This is a reproduction-engineering convention only, not a claim about what the original authors did."
+
+checkpoint_selection:
+  value: "last_epoch_of_session"
+  provenance: IMPLEMENTATION_CHOICE
+  source: "reproduction_protocol.md Section 12: paper states nothing about last-epoch vs. best-validation checkpoint selection."
+
+num_seeds_per_run:
+  value: null
+  provenance: UNRESOLVED
+  source: "reproduction_protocol.md Section 13: paper never states whether reported numbers are a single run or averaged over multiple seeds."
+
+logging_format:
+  value: jsonl
+  provenance: IMPLEMENTATION_CHOICE
+  source: "reproduction_protocol.md Section 14: 'Not specified in the paper beyond the general PyTorch implementation statement... No mention of logging framework.' JSONL adopted as the reproduction-engineering convention for structured per-epoch/per-session logs."
+
+logged_metrics:
+  value: ["L_total", "L_CE", "L_recon", "L_adv", "L_energy", "cumulative_session_accuracy"]
+  provenance: IMPLEMENTATION_CHOICE
+  source: "reproduction_protocol.md Section 14's reproduction-engineering convention, to support ambiguity_log.md and unit-test infrastructure per project rules #6-#9."
+
+experiment_id_format:
+  value: "{dataset}_{YYYYMMDD}_{HHMMSS}_{short_git_hash}"
+  provenance: IMPLEMENTATION_CHOICE
+  source: "FINAL_IMPLEMENTATION_BLUEPRINT.md Part 8: naming convention for results/ subdirectories."
+
+hardware_used_for_main_results:
+  value: null
+  provenance: UNRESOLVED
+  source: "reproduction_protocol.md Section 14: the RTX 2080Ti is stated only for Table IV's timing/params comparison, 'not necessarily the hardware used for Tables I-III's main results, which is not stated.'"

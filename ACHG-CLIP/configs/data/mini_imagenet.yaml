@@ -1,0 +1,88 @@
+# configs/data/mini_imagenet.yaml
+#
+# miniImageNet FSCIL protocol. See reproduction_protocol.md Sections 1.2, 2-6.
+
+dataset_name:
+  value: miniImageNet
+  provenance: PAPER_FACT
+  source: "Section V.A bullet 2."
+
+total_images:
+  value: 60000
+  provenance: PAPER_FACT
+  source: "Section V.A: 'With 60,000 84x84 RGB images over 100 classes'."
+
+image_size:
+  value: 84
+  provenance: PAPER_FACT
+  source: "Section V.A (same sentence)."
+
+image_channels:
+  value: 3
+  provenance: PAPER_FACT
+  source: "Section V.A: 'RGB'."
+
+total_classes:
+  value: 100
+  provenance: PAPER_FACT
+  source: "Section V.A."
+
+base_classes:
+  value: 60
+  provenance: PAPER_FACT
+  source: "Section V.A: 'we similarly assigned 60 classes as base classes'."
+
+incremental_classes_total:
+  value: 40
+  provenance: PAPER_FACT
+  source: "Section V.A: 'and the remaining 40 as incremental.'"
+
+num_incremental_sessions:
+  value: 8
+  provenance: PAPER_FACT
+  source: "Section V.A: 'These are also split into 8 sessions'."
+
+classes_per_incremental_session:
+  value: 5
+  provenance: PAPER_FACT
+  source: "Section V.A: 'each with 5 new classes and 5 samples per class' (5-way)."
+
+shots_per_class:
+  value: 5
+  provenance: PAPER_FACT
+  source: "Section V.A (same sentence, 5-shot)."
+
+base_batch_size:
+  value: 4
+  provenance: PAPER_FACT
+  source: "Section V.B: applies identically to all three datasets per reproduction_protocol.md Section 2."
+
+base_epochs:
+  value: 3
+  provenance: PAPER_FACT
+  source: "Section V.B: applies identically to all three datasets per reproduction_protocol.md Section 2."
+
+incremental_batch_size:
+  value: 4
+  provenance: PAPER_FACT
+  source: "Section V.B: applies identically to all three datasets per reproduction_protocol.md Section 3."
+
+incremental_epochs:
+  value: 5
+  provenance: PAPER_FACT
+  source: "Section V.B: applies identically to all three datasets per reproduction_protocol.md Section 3."
+
+class_split_source:
+  value: "deterministic_pseudo_random"
+  provenance: IMPLEMENTATION_CHOICE
+  source: "Functional Baseline: No explicit standard split was found, CEC splits are commonly used, but without author confirmation we generate a pseudo-random permutation from seed."
+
+preprocessing_normalization:
+  value: "mean=[0.481, 0.457, 0.408], std=[0.268, 0.261, 0.275], resize=224"
+  provenance: IMPLEMENTATION_CHOICE
+  source: "Standard CLIP expectation (model is frozen so it requires proper normalization and seq length)."
+
+test_set_composition:
+  value: "cumulative_all_classes_seen_so_far"
+  provenance: PAPER_FACT
+  source: "Section V.A/Table II: per-session accuracy columns evaluate over all classes seen so far, per Section III.A's problem formalization."

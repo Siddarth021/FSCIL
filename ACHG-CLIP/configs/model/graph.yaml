@@ -1,0 +1,56 @@
+# configs/model/graph.yaml
+#
+# Graph node construction (Eqs. 13 node/edge inputs) and adjacency matrix construction
+# (Eqs. 14-18). See FINAL_IMPLEMENTATION_BLUEPRINT.md Blocker 1.
+
+adjacency_threshold:
+  value: 0.8
+  provenance: PAPER_FACT
+  source: "Section V.D.2 / Fig. 3 sensitivity heatmap: fixed threshold of 0.8 selected as optimal; Eq. 15 defines the strict '>' binarization rule."
+
+cosine_similarity:
+  value: true
+  provenance: PAPER_FACT
+  source: "Eq. 14: sim_matrix_{i,j} = cos(x_i, x_j)."
+
+threshold_comparator:
+  value: "strict_greater_than"
+  provenance: PAPER_FACT
+  source: "Eq. 15: 'A_{i,j} = 1, if sim_matrix_{i,j} > adj_threshold' — strict inequality, boundary value maps to 0."
+
+symmetrization:
+  value: "average_with_transpose"
+  provenance: PAPER_FACT
+  source: "Eq. 16: Z = (A + A^T) / 2."
+
+degree_normalization:
+  value: "symmetric_D_inv_sqrt"
+  provenance: PAPER_FACT
+  source: "Eq. 17: A~ = D^(-1/2) . Z . D^(-1/2)."
+
+optional_attention_reweight_enabled:
+  value: false
+  provenance: JUSTIFIED_INFERENCE
+  source: "Eq. 18: paper explicitly marks the attention-reweight step 'optional' but never states whether it is used in the final reported model."
+  note: >
+    ambiguity_log.md item A7 / equation_mapping.md Eq.18 row: default OFF is a reproduction
+    convention (a togglable config flag), not a confirmed paper fact about the reported results.
+    Do not assume ON.
+
+num_nodes_mode:
+  value: per_layer
+  provenance: IMPLEMENTATION_CHOICE
+  source: "FINAL_RESEARCH_DECISIONS.md Issue 3 (TRUE BLOCKER): paper never equates graph node count N to M, L, or L*M. Section V.D.4 confirms M=1, which would make 'node = prompt' degenerate (1-node graph, no edges)."
+  note: >
+    FINAL_IMPLEMENTATION_BLUEPRINT.md Blocker 1 resolution: N = L (one graph node per
+    Transformer/prompt layer, per modality). Rationale: with M=1, the existing prompt tensor
+    G in R^{L x 1 x d} decomposes naturally along its L axis into L per-layer prompt vectors --
+    the only decomposition that yields a non-degenerate, multi-node graph without inventing new
+    state. Rejection of the degenerate N=M=1 alternative is JUSTIFIED_INFERENCE; the specific
+    choice of N=L beyond "non-degenerate" is not otherwise evidenced. Confidence: Low.
+
+node_feature_dim_D:
+  value: null
+  provenance: UNRESOLVED
+  source: "Section IV.B: 'node feature matrices X in R^{N x D}' -- D is symbolic only, never given a numeric value."
+  note: "Output width of the Fig.1 MLP bridge (configs/model/mlp_bridge.yaml) that produces node features from prompt vectors."

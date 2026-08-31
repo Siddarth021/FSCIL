@@ -1,0 +1,36 @@
+# configs/targets/reported_results.yaml
+#
+# READ-ONLY REFERENCE DATA. Transcribed directly from the paper (paper_spec.md Section 35 /
+# Section V.C, Table IV). Never written to by training or evaluation code
+# (reproduction_protocol.md Section 15.4). Never asserted as ground truth our own runs must
+# produce -- these exist only as comparison targets.
+
+cifar100:
+  mean_accuracy_pct:
+    value: 82.30
+    provenance: PAPER_FACT
+    source: "Section V.C: 'In CIFAR100, our model achieved an average accuracy of 82.30%...'; Table I 'Mean' column, 'Ours' row."
+  delta_pd_pct:
+    value: 9.72
+    provenance: PAPER_FACT
+    source: "Section V.C: '...and a Delta_PD value of 9.72%.'; Table I 'ΔPD' column, 'Ours' row."
+
+mini_imagenet:
+  mean_accuracy_pct:
+    value: 85.05
+    provenance: PAPER_FACT
+    source: "Section V.C: 'In miniImageNet, it delivered an average accuracy of 85.05%...'; Table II 'Mean' column, 'Ours' row."
+  delta_pd_pct:
+    value: 8.42
+    provenance: PAPER_FACT
+    source: "Section V.C: '...and a Delta_PD value of 8.42%.'; Table II 'ΔPD' column, 'Ours' row."
+
+cub200:
+  mean_accuracy_pct:
+    value: 69.54
+    provenance: PAPER_FACT
+    source: "Section V.C: 'In the challenging CUB200 dataset, the model excelled with an average accuracy of 69.54%...'; Table III 'Mean' column, 'Ours' row."
+  delta_pd_pct:
+    value: 17.67
+    provenance: PAPER_FACT
+    source: "Section V.C: '...and a Delta_PD value of 17.67%.'; Table III 'ΔPD' column, 'Ours' row."

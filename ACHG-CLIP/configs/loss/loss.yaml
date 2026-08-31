@@ -1,0 +1,32 @@
+# configs/loss/loss.yaml
+#
+# Total loss weighting (Eq. 34).
+
+total_loss_form:
+  value: "L_CE + lambda1*L_recon + lambda2*L_adv + lambda3*L_energy"
+  provenance: PAPER_FACT
+  source: "Eq. 34."
+
+lambda1_recon:
+  value: 0.04
+  provenance: PAPER_FACT
+  source: "Section V.B: 'The coefficients assigned to the ACGA loss and the HGN-EC loss within the total loss function were set to 0.04.'"
+  note: >
+    reproduction_protocol.md / ambiguity_log.md item A10: the sentence groups "the ACGA loss"
+    (which itself has two components, L_recon and L_adv) together with "the HGN-EC loss"
+    (L_energy) under one shared 0.04 value. Whether this means lambda1 == lambda2 == lambda3 == 0.04
+    (three equal coefficients) or something coarser (e.g. one coefficient for the combined ACGA
+    loss and a second for HGN-EC, both happening to equal 0.04) is not perfectly disambiguated by
+    the sentence. This project reads it as lambda1=lambda2=lambda3=0.04 (three equal
+    coefficients), the most direct reading of Eq. 34's three separate lambda symbols, but the A10
+    ambiguity is recorded here rather than silently resolved.
+
+lambda2_adv:
+  value: 0.04
+  provenance: PAPER_FACT
+  source: "Section V.B (same sentence as lambda1_recon); see note on lambda1_recon re: A10 ambiguity."
+
+lambda3_energy:
+  value: 0.04
+  provenance: PAPER_FACT
+  source: "Section V.B (same sentence as lambda1_recon); see note on lambda1_recon re: A10 ambiguity."

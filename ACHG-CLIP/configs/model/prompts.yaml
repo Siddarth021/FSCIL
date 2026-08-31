@@ -1,0 +1,32 @@
+# configs/model/prompts.yaml
+#
+# Learnable prompt parameters (Eqs. 9-10). See FINAL_IMPLEMENTATION_BLUEPRINT.md Blocker 2.
+
+num_learnable_prompts_M:
+  value: 1
+  provenance: PAPER_FACT
+  source: "Section V.D.4 / Fig. 2(b): sensitivity study over {1,2,3,4} prompts; M=1 gives the highest accuracy and is the reported final-model setting."
+
+text_prompt_insertion_mode:
+  value: concatenate
+  provenance: PAPER_FACT
+  source: "Eq. 9: X = [X_CLS, g^(l), X_tokens] — literal concatenation notation, undisputed for the text branch."
+
+vision_prompt_insertion_mode:
+  value: concatenate
+  provenance: IMPLEMENTATION_CHOICE
+  source: "Eq. 10 uses identical concatenation notation to Eq. 9, but the prose immediately after Eq. 10 states vision prompts 'directly replace the input of each layer' — a direct contradiction (FINAL_RESEARCH_DECISIONS.md Issue 5, TRUE BLOCKER)."
+  note: >
+    FINAL_IMPLEMENTATION_BLUEPRINT.md Blocker 2 resolves this as IMPLEMENTATION_CHOICE:
+    concatenation is adopted, matching Eq. 9/Eq. 10's literal identical notation and CPE-CLIP's
+    actual vision-branch design (accumulation ~= concatenation-based growth), while CPE-CLIP
+    assigns "replace" to its language branch, not vision -- evidence the paper's "replace" sentence
+    is a likely mislabeling rather than an intended divergent design. Confidence: Medium.
+    Do NOT implement a literal token-replacement path for vision prompts without revisiting this
+    decision (see FINAL_IMPLEMENTATION_BLUEPRINT.md Part 0, Blocker 2).
+
+prompt_dim_d:
+  value: null
+  provenance: UNRESOLVED
+  source: "Same symbol 'd' as configs/model/clip_backbone.yaml: token_embedding_dim_d (prompts live in the same embedding space)."
+  note: "Mirrors clip_backbone.yaml token_embedding_dim_d; kept as a separate key for explicitness, not because it can differ."

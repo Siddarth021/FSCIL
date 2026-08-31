@@ -1,0 +1,30 @@
+# Large datasets
+datasets/
+ACHG-CLIP/data/cifar-100*
+
+# Output directories
+ACHG-CLIP/results/
+ACHG-CLIP/checkpoints/
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.env
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Testing and IDEs
+.pytest_cache/
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# MacOS
+.DS_Store

@@ -1,0 +1,93 @@
+# configs/data/cub200.yaml
+#
+# CUB-200-2011 FSCIL protocol. See reproduction_protocol.md Sections 1.3, 2-6.
+
+dataset_name:
+  value: CUB-200-2011
+  provenance: PAPER_FACT
+  source: "Section V.A bullet 3."
+
+total_images:
+  value: 11788
+  provenance: PAPER_FACT
+  source: "Section V.A: 'This dataset comprises a total of 11,788 RGB images with a resolution of 224x224 pixels, covering 200 distinct bird species.'"
+
+image_size:
+  value: 224
+  provenance: PAPER_FACT
+  source: "Section V.A (same sentence)."
+
+image_channels:
+  value: 3
+  provenance: PAPER_FACT
+  source: "Section V.A: 'RGB'."
+
+total_classes:
+  value: 200
+  provenance: PAPER_FACT
+  source: "Section V.A."
+
+base_classes:
+  value: 100
+  provenance: PAPER_FACT
+  source: "Section V.A: 'Here, 100 classes serve as the base'."
+
+incremental_classes_total:
+  value: 100
+  provenance: PAPER_FACT
+  source: "Section V.A: 'and the other 100 are used for incremental learning.'"
+
+num_incremental_sessions:
+  value: 10
+  provenance: PAPER_FACT
+  source: "Section V.A: 'They are divided into 10 sessions'."
+
+classes_per_incremental_session:
+  value: 10
+  provenance: PAPER_FACT
+  source: "Section V.A: 'each introducing 10 new classes with 5 samples each' (10-way)."
+
+shots_per_class:
+  value: 5
+  provenance: PAPER_FACT
+  source: "Section V.A (same sentence, 5-shot)."
+
+base_batch_size:
+  value: 4
+  provenance: PAPER_FACT
+  source: "Section V.B: applies identically to all three datasets per reproduction_protocol.md Section 2."
+
+base_epochs:
+  value: 3
+  provenance: PAPER_FACT
+  source: "Section V.B: applies identically to all three datasets per reproduction_protocol.md Section 2."
+
+incremental_batch_size:
+  value: 4
+  provenance: PAPER_FACT
+  source: "Section V.B: applies identically to all three datasets per reproduction_protocol.md Section 3."
+
+incremental_epochs:
+  value: 5
+  provenance: PAPER_FACT
+  source: "Section V.B: applies identically to all three datasets per reproduction_protocol.md Section 3."
+
+class_split_source:
+  value: "deterministic_pseudo_random"
+  provenance: IMPLEMENTATION_CHOICE
+  source: "Functional Baseline: No explicit standard split was found, CEC splits are commonly used, but without author confirmation we generate a pseudo-random permutation from seed."
+
+preprocessing_normalization:
+  value: "mean=[0.481, 0.457, 0.408], std=[0.268, 0.261, 0.275], resize=224"
+  provenance: IMPLEMENTATION_CHOICE
+  source: "Standard CLIP expectation (model is frozen so it requires proper normalization and seq length)."
+
+test_set_composition:
+  value: "cumulative_all_classes_seen_so_far"
+  provenance: PAPER_FACT
+  source: "Section V.A/Table III: per-session accuracy columns evaluate over all classes seen so far, per Section III.A's problem formalization."
+
+ablation_study_scope:
+  value: "cub200_only_11_sessions"
+  provenance: PAPER_FACT
+  source: "reproduction_protocol.md Section 7: 'Ablation study (Table V) uses the same cumulative per-session evaluation procedure, on CUB200 only, across all 11 sessions.'"

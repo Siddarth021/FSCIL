@@ -1,0 +1,36 @@
+attention_head_dim_dk:
+  note: FINAL_RESEARCH_DECISIONS.md Part A, Issue 2.
+  provenance: IMPLEMENTATION_CHOICE
+  source: Standard ViT-B/32 attention head dimension (768 / 12 heads).
+  value: 64
+frozen:
+  provenance: PAPER_FACT
+  source: 'Section IV.A framing + Section V.B: ''It freezes the backbone network of
+    CLIP and only trains a small number of GIN-based modules.'''
+  value: true
+num_transformer_layers_L:
+  note: Also the layer count driving Blocker 1's N=L graph-node count.
+  provenance: IMPLEMENTATION_CHOICE
+  source: Standard ViT-B/32 transformer layer count.
+  value: 12
+positional_encoding_type:
+  note: equation_mapping.md row for Eq. 2 / ambiguity_log.md.
+  provenance: IMPLEMENTATION_CHOICE
+  source: Standard CLIP ViT-B/32 positional encoding.
+  value: learned
+projection_dim_de:
+  note: FINAL_RESEARCH_DECISIONS.md Part A, Issue 2.
+  provenance: IMPLEMENTATION_CHOICE
+  source: Standard ViT-B/32 text/vision projection dimension.
+  value: 512
+token_embedding_dim_d:
+  note: FINAL_RESEARCH_DECISIONS.md Part A, Issue 2.
+  provenance: IMPLEMENTATION_CHOICE
+  source: Standard ViT-B/32 hidden dimension.
+  value: 768
+variant:
+  note: FINAL_RESEARCH_DECISIONS.md Part A, Issue 1. Resolved via user auto-approval
+    to proceed with a standard variant.
+  provenance: IMPLEMENTATION_CHOICE
+  source: Defaulted to standard CLIP ViT-B/32 due to lack of paper specification.
+  value: ViT-B/32
