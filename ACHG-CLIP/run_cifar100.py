@@ -48,6 +48,7 @@ class SimplePatchifier(nn.Module):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--short", action="store_true", help="Run short validation (2 base epochs, 1 inc epoch)")
+    parser.add_argument("--resume_base", type=str, default="", help="Path to a checkpoint to resume base training from")
     args = parser.parse_args()
 
     # 1. Generate run folder name
@@ -209,6 +210,10 @@ def main():
     print(f"SESSION 0 (BASE TRAINING) - {base_epochs} epochs")
     print("==================================================")
     session_0 = manager.get_session(0)
+    
+    if args.resume_base:
+        print(f"Resuming base training from {args.resume_base}")
+        trainer.load_checkpoint(args.resume_base)
     
     best_acc = 0.0
     start_time = time.time()
