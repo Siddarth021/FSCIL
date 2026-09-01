@@ -42,20 +42,28 @@ def run_experiment(name, data_seed, backbone_variant):
         print(f"Experiment {name} saved to {new_dir}\n")
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--experiment", type=str, default="all", choices=["all", "SplitStudy", "Backbone_CLIP_B", "Backbone_CLIP_C"], help="Experiment to run")
+    args = parser.parse_args()
+
     # Baseline configs to restore later
     original_seed = 42
     original_variant = "ViT-B/32"
     
     try:
-        # Experiment A: Split B (Seed 1993, ViT-B/32)
-        run_experiment("SplitStudy", 1993, "ViT-B/32")
-        
-        # Experiment B1: Backbone CLIP-B (Seed 42, ViT-B/16)
-        run_experiment("Backbone_CLIP_B", 42, "ViT-B/16")
-        
-        # Experiment B2: Backbone CLIP-C (Seed 42, ViT-L/14)
-        run_experiment("Backbone_CLIP_C", 42, "ViT-L/14")
-        
+        if args.experiment in ["all", "SplitStudy"]:
+            # Experiment A: Split B (Seed 1993, ViT-B/32)
+            run_experiment("SplitStudy", 1993, "ViT-B/32")
+            
+        if args.experiment in ["all", "Backbone_CLIP_B"]:
+            # Experiment B1: Backbone CLIP-B (Seed 42, ViT-B/16)
+            run_experiment("Backbone_CLIP_B", 42, "ViT-B/16")
+            
+        if args.experiment in ["all", "Backbone_CLIP_C"]:
+            # Experiment B2: Backbone CLIP-C (Seed 42, ViT-L/14)
+            run_experiment("Backbone_CLIP_C", 42, "ViT-L/14")
+            
     finally:
         # Always restore baseline configs
         modify_yaml("configs/data/cifar100.yaml", "seed", original_seed)

@@ -49,6 +49,13 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--short", action="store_true", help="Run short validation (2 base epochs, 1 inc epoch)")
     parser.add_argument("--resume_base", type=str, default="", help="Path to a checkpoint to resume base training from")
+    parser.add_argument("--variant", type=str, default="", help="CLIP backbone variant (ViT-B/32, ViT-B/16, ViT-L/14)")
+    parser.add_argument("--seed", type=int, default=None, help="Seed for class split / data manager")
+    parser.add_argument("--data_root", type=str, default="./datasets", help="Path to data root directory")
+    parser.add_argument("--base_epochs", type=int, default=None, help="Base epochs (overrides config)")
+    parser.add_argument("--incremental_epochs", type=int, default=None, help="Incremental epochs (overrides config)")
+    parser.add_argument("--base_batch_size", type=int, default=None, help="Base batch size")
+    parser.add_argument("--incremental_batch_size", type=int, default=None, help="Incremental batch size")
     args = parser.parse_args()
 
     # 1. Generate run folder name
@@ -75,19 +82,54 @@ def main():
         data_cfg = yaml.safe_load(f)
     with open("configs/training.yaml", "r") as f:
         train_cfg = yaml.safe_load(f)
+    with open("configs/model/clip_backbone.yaml", "r") as f:
+        model_cfg = yaml.safe_load(f)
+
+    # Apply overrides
+    if args.seed is not None:
+        if isinstance(data_cfg.get("seed"), dict):
+            data_cfg["seed"]["value"] = args.seed
+        else:
+            data_cfg["seed"] = args.seed
+    if args.base_batch_size is not None:
+        data_cfg["base_batch_size"]["value"] = args.base_batch_size
+    if args.incremental_batch_size is not None:
+        data_cfg["incremental_batch_size"]["value"] = args.incremental_batch_size
+    if args.base_epochs is not None:
+        data_cfg["base_epochs"]["value"] = args.base_epochs
+    if args.incremental_epochs is not None:
+        data_cfg["incremental_epochs"]["value"] = args.incremental_epochs
+
+    variant = args.variant if args.variant else model_cfg.get("variant", {}).get("value", "ViT-B/32")
+
+    # Resolve data root path
+    data_root = args.data_root
+    if not os.path.exists(data_root):
+        if os.path.exists("D:/FSCIL/datasets"):
+            data_root = "D:/FSCIL/datasets"
+        elif os.path.exists("f:/FSCIL/datasets"):
+            data_root = "f:/FSCIL/datasets"
+        else:
+            os.makedirs(data_root, exist_ok=True)
 
     # Instantiate the data manager
-    print("\nInitializing Data Manager...")
-    manager = get_data_manager(data_cfg, data_root='D:/FSCIL/datasets', synthetic=False)
+    print(f"\nInitializing Data Manager with data_root={data_root}...")
+    manager = get_data_manager(data_cfg, data_root=data_root, synthetic=False)
     
     print(f"Dataset availability: Verified.")
     print(f"Base classes (Session 0): {manager.base_classes}")
     print(f"Incremental classes: {manager.incremental_classes}")
     print(f"Total sessions: {manager.num_sessions}")
 
-    # Initialize CLIPProcessor
-    print("\nLoading HuggingFace CLIPProcessor...")
-    processor = transformers.CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+    # Initialize CLIPProcessor matching variant
+    hf_model_map = {
+        "ViT-B/32": "openai/clip-vit-base-patch32",
+        "ViT-B/16": "openai/clip-vit-base-patch16",
+        "ViT-L/14": "openai/clip-vit-large-patch14"
+    }
+    hf_model_name = hf_model_map.get(variant, "openai/clip-vit-base-patch32")
+    print(f"\nLoading HuggingFace CLIPProcessor for {variant} ({hf_model_name})...")
+    processor = transformers.CLIPProcessor.from_pretrained(hf_model_name)
 
     # Get class names
     if hasattr(manager.train_dataset, 'dataset') and hasattr(manager.train_dataset.dataset, 'classes'):
@@ -103,9 +145,7 @@ def main():
     text_inputs = processor(text=text_prompts, return_tensors="pt", padding="max_length", max_length=77, truncation=True)
     global_tokens = text_inputs.input_ids.to(device)
 
-    with open("configs/model/clip_backbone.yaml", "r") as f:
-        model_cfg = yaml.safe_load(f)
-    variant = model_cfg.get("variant", {}).get("value", "ViT-B/32")
+    print(f"Selected CLIP Variant: {variant}")
 
     if variant in ["ViT-B/32", "ViT-B/16"]:
         d_model = 768
@@ -331,11 +371,20 @@ def main():
         }
     }
     
-    print("\n--- FINAL METRICS ---")
-    print(f"Base Accuracy (A_base): {a_base:.4f}")
-    print(f"Final Accuracy (A_last): {a_last:.4f}")
-    print(f"Performance Drop (PD): {pd:.4f}")
-    print(f"Mean Accuracy: {mean_acc:.4f}")
+    print("\n" + "="*60)
+    print("--- FINAL EXPERIMENTAL RESULTS ---")
+    print("="*60)
+    print(f"Backbone Variant : {variant}")
+    print(f"Random Seed      : {data_cfg.get('seed', {}).get('value', 42) if isinstance(data_cfg.get('seed'), dict) else data_cfg.get('seed', 42)}")
+    print(f"Base Accuracy    : {a_base*100:.2f}%")
+    print(f"Final Accuracy   : {a_last*100:.2f}%")
+    print(f"Performance Drop : {pd*100:.2f}%")
+    print(f"Mean Accuracy    : {mean_acc*100:.2f}%")
+    print(f"Total Runtime    : {total_runtime:.1f}s")
+    print("\nSession Accuracies:")
+    for s_idx in sorted(accuracies.keys()):
+        print(f"  Session {s_idx}: {accuracies[s_idx]*100:.2f}%")
+    print("="*60 + "\n")
     
     # Write to a summary log in results directory
     with open(os.path.join(run_dir, "eval_summary.json"), "w") as f:
