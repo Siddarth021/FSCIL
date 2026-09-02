@@ -74,14 +74,14 @@ def main():
     # 3. Copy configuration files to the run folder for reproducibility
     config_dest = os.path.join(run_dir, "configs")
     os.makedirs(config_dest, exist_ok=True)
-    for cfg_file in ["configs/data/cub200.yaml", "configs/training.yaml", "configs/model/clip_backbone.yaml"]:
+    for cfg_file in ["configs/data/mini_imagenet.yaml", "configs/training.yaml", "configs/model/clip_backbone.yaml"]:
         if os.path.exists(cfg_file):
             shutil.copy(cfg_file, config_dest)
             print(f"Copied {cfg_file} to run directory.")
             
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    with open("configs/data/cub200.yaml", "r") as f:
+    with open("configs/data/mini_imagenet.yaml", "r") as f:
         data_cfg = yaml.safe_load(f)
     with open("configs/training.yaml", "r") as f:
         train_cfg = yaml.safe_load(f)
