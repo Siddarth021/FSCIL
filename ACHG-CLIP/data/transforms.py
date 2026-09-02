@@ -32,7 +32,7 @@ class CLIPTransform:
         if len(img_arr.shape) == 2:
             img_arr = np.stack([img_arr]*3, axis=-1)
             
-        tensor = torch.tensor(img_arr).permute(2, 0, 1).float() / 255.0
+        tensor = torch.from_numpy(np.array(img_arr, copy=True)).permute(2, 0, 1).float() / 255.0
         tensor = (tensor - self.mean) / self.std
         return tensor
 

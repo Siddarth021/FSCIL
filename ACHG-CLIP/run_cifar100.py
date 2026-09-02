@@ -29,6 +29,9 @@ class LoggerTee:
     def flush(self):
         self.terminal.flush()
         self.log.flush()
+        
+    def isatty(self):
+        return hasattr(self.terminal, 'isatty') and self.terminal.isatty()
 
 # CIFAR100 images are resized to 224x224 in our pipeline.
 # HF CLIP takes 224x224 raw images.

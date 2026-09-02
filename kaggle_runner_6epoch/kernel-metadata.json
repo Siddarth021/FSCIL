@@ -1,0 +1,16 @@
+{
+  "id": "gundetisiddarth/achg-clip-vit-large-cifar100-6ep",
+  "title": "ACHG-CLIP ViT-Large CIFAR100 6 Epoch",
+  "code_file": "achg_clip_vit_large_6epoch.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": "true",
+  "enable_gpu": "true",
+  "accelerator": "GPU_T4x2",
+  "enable_tpu": "false",
+  "enable_internet": "true",
+  "dataset_sources": [],
+  "competition_sources": [],
+  "kernel_sources": ["gundetisiddarth/achg-clip-vit-large-cifar100"],
+  "model_sources": []
+}

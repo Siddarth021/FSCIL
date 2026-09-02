@@ -5,6 +5,11 @@ ACHG-CLIP/data/cifar-100*
 # Output directories
 ACHG-CLIP/results/
 ACHG-CLIP/checkpoints/
+kaggle_results/
+kaggle_runner/temp_meta/
+*.pt
+*.pth
+kaggle_logs*.txt
 
 # Python artifacts
 __pycache__/
