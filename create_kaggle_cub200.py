@@ -77,7 +77,7 @@ cells = [
             "import sys\n",
             "\n",
             "print('Starting Experiment B2 (ViT-L/14, Seed 42)...')\n",
-            "cmd = [sys.executable, 'run_cub200.py', '--variant', 'ViT-L/14', '--seed', '42', '--data_root', './datasets']\n",
+            "cmd = [sys.executable, 'run_cub200.py', '--variant', 'ViT-L/14', '--seed', '42', '--data_root', '/kaggle/input/cub2002011']\n",
             "\n",
             "process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)\n",
             "for line in process.stdout:\n",
