@@ -93,7 +93,11 @@ class MiniImageNetDataset(BaseFSCILDataset):
         else:
             path = os.path.join(self.root, "miniimagenet")
             if not os.path.exists(path):
-                raise FileNotFoundError(f"miniImageNet not found at {path}. Real data validation failed.")
+                path = self.root
+            if os.path.exists(os.path.join(path, "images")) and os.path.isdir(os.path.join(path, "images")):
+                path = os.path.join(path, "images")
+            if not os.path.exists(path):
+                raise FileNotFoundError(f"miniImageNet not found at {path} or {self.root}. Real data validation failed.")
             
             # Use ImageFolder to parse the 100 class directories
             full_dataset = ImageFolder(root=path, transform=self.transform)
