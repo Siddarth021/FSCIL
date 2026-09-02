@@ -141,9 +141,9 @@ def main():
         class_names = manager.train_dataset.classes
     else:
         # Fallback if classes attribute missing
-        class_names = [f"class {i}" for i in range(100)]
+        class_names = [f"class {i}" for i in range(200)]
     
-    # Pre-tokenize all 100 classes
+    # Pre-tokenize all 200 classes
     text_prompts = [f"a photo of a {name}" for name in class_names]
     text_inputs = processor(text=text_prompts, return_tensors="pt", padding="max_length", max_length=77, truncation=True)
     global_tokens = text_inputs.input_ids.to(device)
