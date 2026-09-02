@@ -225,7 +225,7 @@ def main():
             
         def forward(self, images, labels=None):
             patches = self.patchifier(images)
-            num_classes = 100
+            num_classes = 200  # CUB-200 has 200 classes
             tokens = get_text_tokens(torch.arange(num_classes, device=images.device), images.device)
             out = self.core_model(patches, tokens, dt=0.01)
             
