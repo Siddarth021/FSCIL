@@ -124,8 +124,10 @@ class FSCILDataManager:
         train_subset = Subset(self.train_dataset, train_indices)
         test_subset = Subset(self.test_dataset, test_indices)
         
-        train_loader = DataLoader(train_subset, batch_size=batch_size, shuffle=True, drop_last=False, num_workers=4, pin_memory=False)
-        test_loader = DataLoader(test_subset, batch_size=batch_size, shuffle=False, drop_last=False, num_workers=4, pin_memory=False)
+        # Use num_workers=2 on Linux/Kaggle to prevent PyTorch worker IPC deadlocks
+        num_workers = 4 if os.name == 'nt' else 2
+        train_loader = DataLoader(train_subset, batch_size=batch_size, shuffle=True, drop_last=False, num_workers=num_workers, pin_memory=False)
+        test_loader = DataLoader(test_subset, batch_size=batch_size, shuffle=False, drop_last=False, num_workers=num_workers, pin_memory=False)
         
         return SessionData(
             session_id=session_id,
