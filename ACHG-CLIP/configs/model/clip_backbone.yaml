@@ -33,4 +33,4 @@ variant:
     to proceed with a standard variant.
   provenance: IMPLEMENTATION_CHOICE
   source: Defaulted to standard CLIP ViT-B/32 due to lack of paper specification.
-  value: ViT-B/32
+  value: ViT-B/16
