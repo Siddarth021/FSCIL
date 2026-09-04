@@ -75,17 +75,23 @@ class ACHGCLIPTrainer:
         """
         Computes standard cross-entropy loss applied to the classification logits.
         """
-        # image_features: [batch_size, D]
-        # text_features: [num_classes, D]
-        # logit_scale: scalar from CLIP
+        # PAPER_FACT: Eq. 11-12 batch-wise contrastive objective.
+        # N must mean the number of image-text pairs in the current batch.
         logit_scale = self.model.clip.mock_logit_scale.exp() if hasattr(self.model.clip, 'mock_logit_scale') else 100.0
         
         # normalized features
         image_features = F.normalize(image_features, dim=-1)
         text_features = F.normalize(text_features, dim=-1)
         
-        logits_per_image = logit_scale * image_features @ text_features.T
-        return F.cross_entropy(logits_per_image, targets)
+        logits = logit_scale * image_features @ text_features.T
+        
+        # Positive pair is on the diagonal of the similarity matrix
+        batch_size = image_features.size(0)
+        labels = torch.arange(batch_size, device=image_features.device)
+        
+        loss_i2t = F.cross_entropy(logits, labels)
+        loss_t2i = F.cross_entropy(logits.T, labels)
+        return (loss_i2t + loss_t2i) / 2
 
     def train_step(self, images: torch.Tensor, text_tokens: torch.Tensor, targets: torch.Tensor, dt: float) -> Dict[str, float]:
         """
@@ -96,8 +102,11 @@ class ACHGCLIPTrainer:
         text_tokens = text_tokens.to(self.device)
         targets = targets.to(self.device)
         
+        # Filter global tokens down to only those in the current batch for InfoNCE pairs
+        batch_text_tokens = text_tokens[targets]
+        
         # Forward pass
-        out: ACHGCLIPOutput = self.model(images, text_tokens, dt=dt)
+        out: ACHGCLIPOutput = self.model(images, batch_text_tokens, dt=dt)
         
         # Losses
         l_ce = self._compute_ce_loss(out.h_vision, out.h_text, targets)

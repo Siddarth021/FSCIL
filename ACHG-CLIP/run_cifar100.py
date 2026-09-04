@@ -280,6 +280,9 @@ def main():
                 print(f"  Batch {batch_idx}: Total Loss = {loss_dict['L_total']:.4f} | {ms_per_batch:.1f} ms/batch")
                 batch_start_time = time.time()
                 
+            if batch_idx > 0 and batch_idx % 500 == 0:
+                torch.cuda.empty_cache()
+                
         # Evaluate after epoch
         print("  Evaluating base session accuracy...")
         metrics_0 = evaluator.evaluate_session(0)

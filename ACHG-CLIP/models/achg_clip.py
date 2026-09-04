@@ -602,8 +602,10 @@ class ACHGCLIP(nn.Module):
     def _register_hooks(self, text_prompts: Optional[torch.Tensor], vision_prompts: Optional[torch.Tensor]):
         """Dynamically registers forward pre-hooks on CLIP's transformer layers to inject prompts.
         
-        Uses the Replacement strategy: replaces the token immediately after [CLS] (index 1)
-        with the graph-updated prompt token.
+        Uses the Concatenation strategy (Eq 9): [X_CLS, g, X_tokens].
+        To preserve sequence length across layers and avoid attention mask mismatch,
+        the prompt is concatenated at layer 0 (increasing seq len by 1) and replacing
+        the inserted prompt token in subsequent layers.
         """
         hooks = []
         
@@ -619,11 +621,21 @@ class ACHGCLIP(nn.Module):
             projected_text = self.text_injection_proj(text_prompts)
             for l_idx, layer in enumerate(text_layers):
                 def text_pre_hook(module, args, kwargs, layer_idx=l_idx):
-                    hidden_states = args[0].clone()  # Clone to avoid in-place graph modifications
+                    hidden_states = args[0]
                     # projected_text shape: (L, M, text_hidden) where M=1
                     prompt = projected_text[layer_idx]  # (1, text_hidden)
-                    hidden_states[:, 1:2, :] = prompt
-                    return (hidden_states,) + args[1:], kwargs
+                    prompt_expanded = prompt.expand(hidden_states.size(0), -1, -1)
+                    
+                    if layer_idx == 0:
+                        # Concatenate at layer 0: [CLS, prompt, rest]
+                        new_hidden = torch.cat([hidden_states[:, 0:1, :], prompt_expanded, hidden_states[:, 1:, :]], dim=1)
+                    else:
+                        # Replace the previously inserted prompt
+                        hidden_states = hidden_states.clone()
+                        hidden_states[:, 1:2, :] = prompt_expanded
+                        new_hidden = hidden_states
+                        
+                    return (new_hidden,) + args[1:], kwargs
                 
                 # HuggingFace standard transformers expect a tuple of args and kwargs from a pre-hook
                 # PyTorch >= 2.0 supports with_kwargs=True
@@ -635,10 +647,18 @@ class ACHGCLIP(nn.Module):
             projected_vision = self.vision_injection_proj(vision_prompts)
             for l_idx, layer in enumerate(vision_layers):
                 def vision_pre_hook(module, args, kwargs, layer_idx=l_idx):
-                    hidden_states = args[0].clone()
+                    hidden_states = args[0]
                     prompt = projected_vision[layer_idx]
-                    hidden_states[:, 1:2, :] = prompt
-                    return (hidden_states,) + args[1:], kwargs
+                    prompt_expanded = prompt.expand(hidden_states.size(0), -1, -1)
+                    
+                    if layer_idx == 0:
+                        new_hidden = torch.cat([hidden_states[:, 0:1, :], prompt_expanded, hidden_states[:, 1:, :]], dim=1)
+                    else:
+                        hidden_states = hidden_states.clone()
+                        hidden_states[:, 1:2, :] = prompt_expanded
+                        new_hidden = hidden_states
+                        
+                    return (new_hidden,) + args[1:], kwargs
                 
                 hook_handle = layer.register_forward_pre_hook(vision_pre_hook, with_kwargs=True)
                 hooks.append(hook_handle)
