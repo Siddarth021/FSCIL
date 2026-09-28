@@ -1,0 +1,43 @@
+# configs/optim/optim.yaml
+#
+# Optimizer, scheduler, gradient handling (Section V.B).
+
+optimizer:
+  value: Lion
+  provenance: PAPER_FACT
+  source: "Section V.B: 'For optimization, we employed the Lion optimizer [59]...'"
+
+learning_rate:
+  value: 0.000325
+  provenance: PAPER_FACT
+  source: "Section V.B: 'with a learning rate of 0.000325'."
+
+weight_decay:
+  value: 0.001
+  provenance: PAPER_FACT
+  source: "Section V.B: 'and a weight decay of 1e-3'."
+
+scheduler:
+  value: CosineAnnealingWarmupRestarts
+  provenance: PAPER_FACT
+  source: "Section V.B: 'combined with the CosineAnnealingWarmupRestarts scheduler [60] for dynamic learning rate adjustment.'"
+
+scheduler_warmup_steps:
+  value: null
+  provenance: UNRESOLVED
+  source: "Section V.B names the scheduler but gives no warmup length anywhere."
+
+scheduler_restart_period:
+  value: null
+  provenance: UNRESOLVED
+  source: "Section V.B names the scheduler but gives no restart period anywhere."
+
+gradient_accumulation_steps:
+  value: 3
+  provenance: PAPER_FACT
+  source: "Section V.B: 'we adopted gradient accumulation over 3 steps'."
+
+gradient_clip_max_norm:
+  value: 4.0
+  provenance: PAPER_FACT
+  source: "Section V.B: 'and gradient clipping with a maximum norm of 4.0.'"

@@ -1,0 +1,15 @@
+{
+  "id": "abhiramreddychamala/fscil-exp5-exp5-multi-template",
+  "title": "FSCIL-Exp5-Multi-Template",
+  "code_file": "kernel_exp5.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "dataset_sources": [],
+  "kernel_sources": [],
+  "competition_sources": [],
+  "model_sources": []
+}

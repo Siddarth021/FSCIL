@@ -1,0 +1,11 @@
+checkpoints/
+results/
+__pycache__/
+*.pyc
+.pytest_cache/
+datasets/
+docs/
+scratch/
+experiment_miniImage/
+*.zip
+*.md

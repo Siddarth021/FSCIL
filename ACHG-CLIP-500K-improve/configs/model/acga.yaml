@@ -1,0 +1,105 @@
+# configs/model/acga.yaml
+#
+# Adversarially Constrained Graph Autoencoder (Eqs. 22-26).
+
+encoder_type:
+  value: "gin_stack"
+  provenance: PAPER_FACT
+  source: "Eq. 22: Z^(l+1) = GINLayer(Z^(l), A) — encoder is the shared GINLayer reused (equation_mapping.md notes on equations appearing twice)."
+
+encoder_mlp_composition:
+  value: "linear_batchnorm_gelu"
+  provenance: PAPER_FACT
+  source: "Section IV.C.1, immediately after Eq. 22: 'MLP is composed of linear layers, batch normalization, and an activation function (GELU).'"
+
+latent_dim_K:
+  value: null
+  provenance: UNRESOLVED
+  source: "Section IV.C.1: 'K represents the dimension of the latent space... N and K are independent, with no functional relationship between them.' No numeric value given anywhere."
+
+decoder_type:
+  value: "inner_product_sigmoid"
+  provenance: PAPER_FACT
+  source: "Eq. 23: A_hat = sigmoid(Z Z^T)."
+
+reconstruction_loss_form:
+  value: "negative_log_likelihood_over_E_union_Eneg"
+  provenance: PAPER_FACT
+  source: "Eq. 24."
+
+negative_sampling_ratio:
+  value: null
+  provenance: UNRESOLVED
+  source: "Eq. 24 introduces E^- (negatively sampled edges) but the paper never states the sampling strategy or ratio."
+
+discriminator_num_layers:
+  value: 2
+  provenance: PAPER_FACT
+  source: "Eq. 25 + Section IV.C.3: 'The discriminator is composed of two fully-connected layers.'"
+
+discriminator_hidden_activation:
+  value: gelu
+  provenance: PAPER_FACT
+  source: "Eq. 25: D(z) = Sigmoid(W2 . GELU(W1 z + b1) + b2)."
+
+discriminator_output_activation:
+  value: sigmoid
+  provenance: PAPER_FACT
+  source: "Eq. 25 (same equation)."
+
+discriminator_hidden_dim:
+  value: null
+  provenance: UNRESOLVED
+  source: "Eq. 25 gives the two-layer FC + GELU + Sigmoid form but no numeric hidden width."
+
+adversarial_loss_form:
+  value: "wasserstein_style_critic_expectation_difference"
+  provenance: PAPER_FACT
+  source: "Eq. 26: L_adv = E_{z~p_z}[D(z)] - E_{z~q(Z|X,A)}[D(z)], described in the paper as 'Wasserstein distance' form."
+  note: >
+    FINAL_RESEARCH_DECISIONS.md Issue 14 flags a paper-internal architectural tension: Eq. 25's
+    sigmoid-bounded discriminator output is atypical for a Wasserstein/WGAN critic (which is
+    conventionally unbounded). Implemented literally as written (sigmoid-bounded D inside the
+    Wasserstein-labeled loss) per project rule #8 (do not silently correct inconsistencies).
+
+prior_distribution:
+  value: "standard_normal"
+  provenance: PAPER_FACT
+  source: "Eq. 26: z ~ p_z = N(0, I)."
+
+wgan_weight_clipping:
+  value: null
+  provenance: UNRESOLVED
+  source: "Standard WGAN stabilization detail; not mentioned anywhere in the paper."
+
+wgan_gradient_penalty:
+  value: null
+  provenance: UNRESOLVED
+  source: "Standard WGAN-GP stabilization detail; not mentioned anywhere in the paper."
+
+critic_update_ratio:
+  value: null
+  provenance: UNRESOLVED
+  source: "Standard WGAN critic:generator update ratio; not mentioned anywhere in the paper."
+
+acga_hgnec_data_wiring:
+  value: "parallel_auxiliary_head_on_shared_XA"
+  provenance: IMPLEMENTATION_CHOICE
+  source: "Section IV.D states verbatim that HGN-EC receives X in R^{N x D} and A in R^{N x N} 'from the ARGA module' -- literally the same symbols/shapes as GIN's own raw output, not ACGA's own defined outputs Z in R^{N x K} and A_hat in R^{N x N} (FINAL_RESEARCH_DECISIONS.md Issue 15, TRUE BLOCKER)."
+  note: >
+    FINAL_IMPLEMENTATION_BLUEPRINT.md Blocker 4 resolution: ACGA computes Z and A_hat only for
+    its own loss terms (L_recon, L_adv); the (X, A) that GIN produced pass through to HGN-EC
+    unchanged. ACGA acts as a parallel auxiliary/regularization head off the same (X, A), not as
+    a transformation stage HGN-EC consumes downstream of. Confidence: Low.
+
+modality_scope:
+  value: "independent_shared_weights"
+  provenance: IMPLEMENTATION_CHOICE
+  source: "Section IV.B uses 'respectively' for GIN (confirmed dual per-modality processing); Section IV.C (ACGA) and Section IV.D (HGN-EC) never repeat this language, using singular X, A, Z, H throughout. Fig. 1 shows one ACGA-Module box (FINAL_RESEARCH_DECISIONS.md Issue 16, TRUE BLOCKER)."
+  note: >
+    FINAL_IMPLEMENTATION_BLUEPRINT.md Blocker 5 resolution: fully independent per-modality
+    processing (one text graph, one vision graph) through a single set of SHARED ACGA weights,
+    invoked twice per training step, producing two independent loss contributions summed before
+    the lambda weighting in Eq. 34. This is the same key as
+    configs/model/hgn_ec.yaml: modality_scope (kept in sync manually; both must agree, see
+    FINAL_IMPLEMENTATION_BLUEPRINT.md Blocker 5). Confidence: Low-Medium.

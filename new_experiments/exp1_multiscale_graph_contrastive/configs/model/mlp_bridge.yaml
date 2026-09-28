@@ -1,0 +1,32 @@
+# configs/model/mlp_bridge.yaml
+#
+# The two unlabeled-in-prose Fig. 1 MLP blocks between "Learnable Prompts" and the GIN
+# modules. See FINAL_IMPLEMENTATION_BLUEPRINT.md Blocker 3.
+
+role:
+  value: "prompt_to_node_projection"
+  provenance: IMPLEMENTATION_CHOICE
+  source: "Fig. 1 shows two unlabeled 'MLP' boxes (one per modality) positioned between the 'Learnable Prompts' box and the GIN modules; no sentence in Section IV mentions them (FINAL_RESEARCH_DECISIONS.md Issue 7, TRUE BLOCKER)."
+  note: >
+    FINAL_IMPLEMENTATION_BLUEPRINT.md Blocker 3 resolution: interpreted as per-modality
+    projections from prompt space (R^d) to the GIN's expected node-feature space (R^D), applied
+    to each layer's prompt vector before graph construction, immediately upstream of Eq. 13's X.
+    CPE-CLIP has an analogous but not identical construct (a single linear text->vision bridge);
+    this is noted as informative context, not confirmation of ACHG-CLIP's specific two-MLP design.
+    Confidence: Low.
+
+architecture:
+  value: "two_linear_layers_gelu"
+  provenance: IMPLEMENTATION_CHOICE
+  source: "Fig. 1 labels these blocks 'MLP' (implying >=1 hidden layer / nonlinearity, unlike CPE-CLIP's single linear bridge)."
+  note: "Mirrors the MLP composition explicitly given for ACGA's encoder (Eq. 22) as the paper's only fully-specified MLP recipe, used here as the concrete default."
+
+hidden_dim:
+  value: null
+  provenance: UNRESOLVED
+  source: "No numeric width given anywhere for these blocks, since their existence itself is figure-only (Issue 7)."
+
+shared_across_modalities:
+  value: false
+  provenance: IMPLEMENTATION_CHOICE
+  source: "Fig. 1 depicts two separate MLP boxes, one per modality (text, vision), not one shared box."

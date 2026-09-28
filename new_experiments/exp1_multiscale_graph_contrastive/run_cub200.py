@@ -1,0 +1,354 @@
+import os
+import sys
+import yaml
+import time
+import json
+import torch
+import torch.nn as nn
+import argparse
+import shutil
+from datetime import datetime
+
+from data.registry import get_data_manager
+from models.achg_clip import ACHGCLIP, ACHGCLIPConfig
+from models.clip.clip_wrapper import CLIPConfig
+from training.trainer import ACHGCLIPTrainer, TrainerConfig
+from evaluation.session_evaluator import FSCILSessionEvaluator
+import transformers
+
+class LoggerTee:
+    def __init__(self, filename):
+        self.terminal = sys.stdout
+        self.log = open(filename, "a", encoding="utf-8")
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.log.write(message)
+        self.log.flush()
+
+    def flush(self):
+        self.terminal.flush()
+        self.log.flush()
+
+    def isatty(self):
+        return hasattr(self.terminal, 'isatty') and self.terminal.isatty()
+
+MAX_TEXT_LEN = 77
+VOCAB_SIZE = 49408
+
+class SimplePatchifier(nn.Module):
+    def __init__(self, patch_size=32):
+        super().__init__()
+        self.patch_size = patch_size
+
+    def forward(self, images):
+        return images
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--short", action="store_true", help="Run short validation")
+    parser.add_argument("--variant", type=str, default="ViT-L/14", help="CLIP backbone variant")
+    parser.add_argument("--seed", type=int, default=None, help="Seed for class split")
+    parser.add_argument("--data_root", type=str, default="./datasets", help="Path to data root")
+    parser.add_argument("--resume_dir", type=str, default="", help="Path to resume directory")
+    args = parser.parse_args()
+
+    variant = args.variant
+
+    if args.resume_dir:
+        run_dir = args.resume_dir
+        print(f"Resuming run in existing directory: {run_dir}")
+        sys.stdout = LoggerTee(os.path.join(run_dir, "train_log.txt"))
+        sys.stderr = sys.stdout
+        print(f"\n--- RESUMING TRAINING ---")
+    else:
+        run_dir = os.path.join("results", datetime.now().strftime("run_%d%m%Y_%H%M%S"))
+        os.makedirs(run_dir, exist_ok=True)
+        sys.stdout = LoggerTee(os.path.join(run_dir, "train_log.txt"))
+        sys.stderr = sys.stdout
+        print(f"Starting CUB200 run. Logs and checkpoints will be saved to {run_dir}")
+
+        config_dest = os.path.join(run_dir, "configs")
+        os.makedirs(config_dest, exist_ok=True)
+        for cfg_file in ["configs/data/cub200.yaml", "configs/training.yaml", "configs/model/clip_backbone.yaml"]:
+            if os.path.exists(cfg_file):
+                shutil.copy(cfg_file, config_dest)
+                print(f"Copied {cfg_file} to run directory.")
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    config_src_dir = os.path.join(run_dir, "configs") if args.resume_dir else "configs"
+
+    with open(os.path.join(config_src_dir, "data", "cub200.yaml") if not args.resume_dir else os.path.join(config_src_dir, "cub200.yaml"), "r") as f:
+        data_cfg = yaml.safe_load(f)
+    with open(os.path.join(config_src_dir, "training.yaml"), "r") as f:
+        train_cfg = yaml.safe_load(f)
+    with open(os.path.join(config_src_dir, "model", "clip_backbone.yaml") if not args.resume_dir else os.path.join(config_src_dir, "clip_backbone.yaml"), "r") as f:
+        model_cfg = yaml.safe_load(f)
+
+    if args.seed is not None:
+        if isinstance(data_cfg.get("seed"), dict):
+            data_cfg["seed"]["value"] = args.seed
+        else:
+            data_cfg["seed"] = args.seed
+
+    print("\nInitializing CUB-200-2011 Data Manager...")
+    manager = get_data_manager(data_cfg, data_root=args.data_root, synthetic=False)
+
+    print(f"Dataset availability: Verified.")
+    print(f"Base classes (Session 0): {manager.base_classes} classes")
+    print(f"Incremental classes: {manager.incremental_classes} classes total across {manager.num_sessions-1} incremental sessions")
+    print(f"Total sessions: {manager.num_sessions} (1 Base Session + {manager.num_sessions-1} Incremental Sessions)")
+
+    # Extract class names by unwrapping FSCILSubset & CUB200Dataset
+    raw_dataset = manager.train_dataset
+    if hasattr(raw_dataset, 'subset') and hasattr(raw_dataset.subset, 'dataset'):
+        imagefolder = raw_dataset.subset.dataset
+    elif hasattr(raw_dataset, 'dataset'):
+        imagefolder = raw_dataset.dataset
+    else:
+        imagefolder = raw_dataset
+
+    if hasattr(imagefolder, 'classes'):
+        class_names = imagefolder.classes
+    else:
+        class_names = [f"bird species {i}" for i in range(200)]
+
+    # Clean class names (e.g., 001.Black_footed_Albatross -> Black footed Albatross)
+    cleaned_class_names = []
+    for name in class_names:
+        clean = name.split(".")[-1].replace("_", " ").strip()
+        cleaned_class_names.append(clean)
+    print(f"Extracted {len(cleaned_class_names)} species names for CUB200.")
+    print(f"  First 5 species: {cleaned_class_names[:5]}")
+
+    hf_model_map = {
+        "ViT-B/32": "openai/clip-vit-base-patch32",
+        "ViT-B/16": "openai/clip-vit-base-patch16",
+        "ViT-L/14": "openai/clip-vit-large-patch14"
+    }
+    hf_model_name = hf_model_map.get(variant, "openai/clip-vit-large-patch14")
+    print(f"\nLoading HuggingFace CLIPProcessor for {variant} ({hf_model_name})...")
+    processor = transformers.CLIPProcessor.from_pretrained(hf_model_name)
+
+    text_prompts = [f"a photo of a {name}, a type of bird." for name in cleaned_class_names]
+    print(f"Sample CUB200 text prompts: {text_prompts[:3]}")
+    text_inputs = processor(text=text_prompts, return_tensors="pt", padding="max_length", max_length=77, truncation=True)
+    global_tokens = text_inputs.input_ids.to(device)
+
+    print(f"Selected CLIP Variant: {variant}")
+    if variant in ["ViT-B/32", "ViT-B/16"]:
+        d_model = 768; d_e = 512; d_k = 64; num_heads = 12; num_layers = 12; ffn_hidden_dim = 3072
+    elif variant == "ViT-L/14":
+        d_model = 1024; d_e = 768; d_k = 64; num_heads = 16; num_layers = 24; ffn_hidden_dim = 4096
+    else:
+        raise ValueError(f"Unknown variant: {variant}")
+
+    clip_cfg = CLIPConfig(
+        variant=variant, d_model=d_model, d_e=d_e, d_k=d_k,
+        num_heads=num_heads, num_layers=num_layers, vocab_size=VOCAB_SIZE,
+        max_text_len=MAX_TEXT_LEN, patch_dim=1, max_patches=1,
+        ffn_hidden_dim=ffn_hidden_dim, dropout=0.0
+    )
+    achg_cfg = ACHGCLIPConfig(
+        clip=clip_cfg, num_layers=num_layers, prompt_dim=d_model,
+        node_feature_dim=d_model, mlp_bridge_hidden_dim=128, gin_num_layers=4,
+        gin_hidden_dim=16, acga_latent_dim=64, hgnec_compressed_dim=8, hgnec_restored_dim=16,
+    )
+
+    print("Building model...")
+    model = ACHGCLIP(achg_cfg)
+    print(f"Total trainable parameters: {model.num_trainable_parameters():,}")
+
+    t_cfg = TrainerConfig(
+        lr=train_cfg.get("learning_rate", {}).get("value", 0.000325),
+        weight_decay=train_cfg.get("weight_decay", {}).get("value", 0.001),
+        warmup_steps=train_cfg.get("scheduler_warmup_steps", {}).get("value", None),
+        restart_period=train_cfg.get("scheduler_restart_period", {}).get("value", None),
+        gradient_accumulation_steps=train_cfg.get("gradient_accumulation_steps", {}).get("value", 3),
+        gradient_clip_max_norm=train_cfg.get("gradient_clip_max_norm", {}).get("value", 4.0),
+    )
+
+    trainer = ACHGCLIPTrainer(model, t_cfg, device)
+    patchifier = SimplePatchifier().to(device)
+
+    def get_text_tokens(labels, device):
+        return global_tokens[labels]
+
+    class WrapperModel(nn.Module):
+        def __init__(self, core_model, patchifier):
+            super().__init__()
+            self.core_model = core_model
+            self.patchifier = patchifier
+            self._cached_h_t = None
+
+        def train(self, mode=True):
+            super().train(mode)
+            if mode:
+                self._cached_h_t = None
+            return self
+
+        def forward(self, images, labels=None):
+            patches = self.patchifier(images)
+            num_classes = 200
+            
+            if not self.training and getattr(self, '_cached_h_t', None) is not None:
+                # Fast path for evaluation: compute vision only, reuse cached text embeddings
+                out = self.core_model.vision_only_forward(patches, dt=0.01)
+                h_v = nn.functional.normalize(out.h_vision, dim=-1)
+                h_t = self._cached_h_t
+            else:
+                tokens = get_text_tokens(torch.arange(num_classes, device=images.device), images.device)
+                out = self.core_model(patches, tokens, dt=0.01)
+                h_v = nn.functional.normalize(out.h_vision, dim=-1)
+                h_t = nn.functional.normalize(out.h_text, dim=-1)
+                
+                if not self.training:
+                    self._cached_h_t = h_t
+
+            logit_scale = 100.0
+            logits = logit_scale * h_v @ h_t.T
+            return logits
+
+    eval_wrapper = WrapperModel(model, patchifier).to(device)
+    evaluator = FSCILSessionEvaluator(model=eval_wrapper, device=device, data_manager=manager)
+
+    base_epochs = 2 if args.short else data_cfg.get("base_epochs", {}).get("value", 20)
+    incremental_epochs = 1 if args.short else data_cfg.get("incremental_epochs", {}).get("value", 5)
+
+    if args.resume_dir:
+        ckpt_path = os.path.join(args.resume_dir, "latest_checkpoint.pt")
+        print(f"Restoring trainer from {ckpt_path}")
+        trainer.load_checkpoint(ckpt_path)
+
+    start_epoch = trainer.epoch
+    total_base_epochs = base_epochs
+
+    print("\n==================================================")
+    print(f"SESSION 0 (BASE TRAINING) - Running epochs {start_epoch+1} to {total_base_epochs}")
+    print("==================================================")
+    session_0 = manager.get_session(0)
+
+    best_acc = 0.0
+    start_time = time.time()
+
+    for epoch in range(start_epoch, total_base_epochs):
+        print(f"\nEpoch {epoch+1}/{total_base_epochs}")
+        trainer.train_mode()
+
+        batch_start_time = time.time()
+        for batch_idx, (images, targets) in enumerate(session_0.train_loader):
+            images = images.to(device)
+            targets = targets.to(device)
+            tokens = global_tokens[targets]
+            patches = patchifier(images)
+            loss_dict = trainer.train_step(patches, tokens, targets, dt=0.01)
+
+            if batch_idx % 20 == 0:
+                elapsed = time.time() - batch_start_time
+                ms_per_batch = (elapsed / 20 * 1000) if batch_idx > 0 else 0
+                print(f"  Batch {batch_idx}: Total Loss = {loss_dict['L_total']:.4f} | {ms_per_batch:.1f} ms/batch")
+                batch_start_time = time.time()
+
+        print("  Evaluating base session accuracy...")
+        metrics_0 = evaluator.evaluate_session(0)
+        acc = metrics_0['accuracy']
+        print(f"  Epoch {epoch+1} Accuracy: {acc:.4f}")
+
+        trainer.epoch = epoch + 1
+        trainer.save_checkpoint(os.path.join(run_dir, "latest_checkpoint.pt"), seed=42)
+
+        if acc > best_acc:
+            best_acc = acc
+            trainer.save_checkpoint(os.path.join(run_dir, "best_checkpoint.pt"), seed=42)
+            print(f"  --> New best accuracy! Saved best_checkpoint.pt")
+
+    end_time = time.time()
+    print(f"\nSession 0 Training completed in {end_time - start_time:.2f} seconds.")
+    accuracies = {0: best_acc}
+
+    # Incremental Sessions (1-10)
+    print("\n--- Starting Incremental Training & Evaluation ---")
+
+    for session_idx in range(1, manager.num_sessions):
+        print(f"\n==================================================")
+        print(f"SESSION {session_idx}")
+        print(f"==================================================")
+
+        prev_session_ckpt = os.path.join(run_dir, f"session_{session_idx-1}.pt")
+        if session_idx == 1:
+            prev_session_ckpt = os.path.join(run_dir, "best_checkpoint.pt")
+
+        print(f"Loading checkpoint from: {prev_session_ckpt}")
+        trainer.load_checkpoint(prev_session_ckpt)
+
+        session_data = manager.get_session(session_idx)
+        print("Training...")
+        trainer.train_mode()
+
+        for epoch in range(incremental_epochs):
+            batch_start_time = time.time()
+            for batch_idx, (images, targets) in enumerate(session_data.train_loader):
+                images = images.to(device)
+                targets = targets.to(device)
+                tokens = global_tokens[targets]
+                patches = patchifier(images)
+                loss_dict = trainer.train_step(patches, tokens, targets, dt=0.01)
+
+                if batch_idx % 20 == 0:
+                    elapsed = time.time() - batch_start_time
+                    ms_per_batch = (elapsed / 20 * 1000) if batch_idx > 0 else 0
+                    print(f"  Batch {batch_idx}: Total Loss = {loss_dict['L_total']:.4f} | {ms_per_batch:.1f} ms/batch")
+                    batch_start_time = time.time()
+
+        curr_session_ckpt = os.path.join(run_dir, f"session_{session_idx}.pt")
+        trainer.save_checkpoint(curr_session_ckpt, seed=42)
+        print(f"Saved checkpoint to {curr_session_ckpt}")
+
+        print(f"Evaluating cumulative classes...")
+        metrics = evaluator.evaluate_session(session_idx)
+        print(f"Cumulative accuracy: {metrics['accuracy']:.4f}")
+        accuracies[session_idx] = metrics['accuracy']
+
+    print("\nValidation Complete.")
+
+    a_base = accuracies[0]
+    a_last = accuracies[manager.num_sessions - 1]
+    pd = a_base - a_last
+    mean_acc = sum(accuracies.values()) / len(accuracies)
+    total_runtime = time.time() - start_time
+
+    final_metrics = {
+        "Base accuracy (A_base)": a_base,
+        "Accuracy after every incremental session": accuracies,
+        "A_last": a_last,
+        "Mean accuracy": mean_acc,
+        "Performance Drop (PD)": pd,
+        "Runtime": total_runtime,
+        "Exact configuration used": {
+            "Data Config": data_cfg,
+            "Train Config": train_cfg,
+        }
+    }
+
+    print("\n" + "="*60)
+    print("--- FINAL EXPERIMENTAL RESULTS (CUB-200-2011) ---")
+    print("="*60)
+    print(f"Backbone Variant : {variant}")
+    seed_val = data_cfg.get('seed', {}).get('value', 42) if isinstance(data_cfg.get('seed'), dict) else data_cfg.get('seed', 42)
+    print(f"Random Seed      : {seed_val}")
+    print(f"Base Accuracy    : {a_base*100:.2f}%")
+    print(f"Final Accuracy   : {a_last*100:.2f}%")
+    print(f"Performance Drop : {pd*100:.2f}%")
+    print(f"Mean Accuracy    : {mean_acc*100:.2f}%")
+    print(f"Total Runtime    : {total_runtime:.1f}s")
+    print("\nSession Accuracies:")
+    for s_idx in sorted(accuracies.keys()):
+        print(f"  Session {s_idx}: {accuracies[s_idx]*100:.2f}%")
+    print("="*60 + "\n")
+
+    with open(os.path.join(run_dir, "eval_summary.json"), "w") as f:
+        json.dump(final_metrics, f, indent=4)
+
+if __name__ == "__main__":
+    main()
